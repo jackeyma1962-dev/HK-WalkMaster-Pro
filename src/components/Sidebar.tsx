@@ -52,7 +52,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     endCoords
 }) => {
     const [interval, setInterval] = useState(500); // meters
-    const [viewMode, setViewMode] = useState<'stops' | 'directions'>('stops');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -206,7 +205,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         </button>
                     </form>
 
-                    {/* Results Section (Now inside the same card) */}
+                    {/* Results Section */}
                     {routes.length > 0 && (
                         <div className="flex flex-col gap-4 border-t-2 border-dashed border-gray-100 pt-4 mt-2">
                             <div className="flex items-center justify-between flex-shrink-0">
@@ -260,123 +259,87 @@ const Sidebar: React.FC<SidebarProps> = ({
                                         )}
                                     </div>
 
-                                    {/* Scrollable List Area (Vertical Timeline) */}
-                                    <div className="relative pt-2">
-                                        {viewMode === 'stops' ? (
-                                            <div className="pl-2 pb-2">
-                                                <div className="relative pl-6">
-                                                    {/* Continuous Line */}
-                                                    <div className="absolute left-[11px] top-2 bottom-4 w-[2px] border-l-2 border-dashed border-gray-300"></div>
+                                    {/* Merged Directions + Timeline List */}
+                                    <div className="relative pt-2 pl-2 pb-2">
+                                        {/* Start Point */}
+                                        <div className="flex gap-3 text-sm mb-4">
+                                            <div className="flex flex-col items-center pt-1">
+                                                <div className="w-3 h-3 bg-green-500 rounded-full border-2 border-white ring-1 ring-green-200 z-10 shadow-sm"></div>
+                                                <div className="w-0.5 flex-1 bg-gray-100 my-0.5"></div>
+                                            </div>
+                                            <div className="pb-3 flex-1">
+                                                <div className="font-bold text-gray-800">{startValue}</div>
+                                                <div className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Start</div>
+                                            </div>
+                                        </div>
 
-                                                    {/* 1. START Point */}
-                                                    <div className="relative flex gap-4 mb-8">
-                                                        <div className="absolute left-[-1.5rem] top-0 bottom-0 flex justify-center w-8">
-                                                            <div className="w-3 h-3 bg-green-500 rounded-full border-2 border-white ring-1 ring-green-200 z-10 mt-1.5 shadow-sm"></div>
+                                        {/* Steps & Interleaved Rest Stops */}
+                                        {(() => {
+                                            let currentDist = 0;
+                                            const stops = [...routePlan.stops].sort((a, b) => a.distanceFromStart - b.distanceFromStart);
+                                            
+                                            return routePlan.route.steps.map((step, i) => {
+                                                const stepStart = currentDist;
+                                                const stepEnd = currentDist + step.distance;
+                                                currentDist += step.distance;
+
+                                                // Find stops in this segment
+                                                const stopsInSegment = stops.filter(s => s.distanceFromStart > stepStart && s.distanceFromStart <= stepEnd);
+
+                                                return (
+                                                    <React.Fragment key={i}>
+                                                        {/* The Step */}
+                                                        <div className="flex gap-3 text-sm group min-h-[40px]">
+                                                            <div className="flex flex-col items-center pt-1">
+                                                                <div className="w-2 h-2 rounded-full bg-blue-300 group-hover:bg-blue-600 transition-colors" />
+                                                                <div className="w-0.5 flex-1 bg-gray-100 my-0.5 group-hover:bg-blue-50" />
+                                                            </div>
+                                                            <div className="pb-4 flex-1 border-b border-gray-50 group-last:border-0">
+                                                                <div className="text-gray-700 font-medium leading-snug">{step.instruction}</div>
+                                                                <div className="text-gray-400 text-xs mt-0.5">{step.distance}m</div>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex-1">
-                                                            <div className="font-bold text-gray-800 text-sm">{startValue}</div>
-                                                            <div className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Start Point</div>
-                                                        </div>
-                                                    </div>
 
-                                                    {/* 2. Rest Stops Loop */}
-                                                    {routePlan.stops.map((stop, i) => {
-                                                        const prevDistance = i === 0 ? 0 : routePlan.stops[i-1].distanceFromStart;
-                                                        const segmentDist = stop.distanceFromStart - prevDistance;
-
-                                                        return (
-                                                            <div key={i} className="relative flex gap-4 mb-8 group">
-                                                                {/* Distance Badge floating on line */}
-                                                                <div className="absolute left-[-2.6rem] -top-6 w-16 text-center z-0">
-                                                                    <span className="bg-white text-gray-400 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-gray-100 shadow-sm">
-                                                                        +{segmentDist.toFixed(0)}m
-                                                                    </span>
-                                                                </div>
-
-                                                                <div className="absolute left-[-1.5rem] top-0 bottom-0 flex justify-center w-8">
+                                                        {/* The Stops (if any occur during this step) */}
+                                                        {stopsInSegment.map(stop => (
+                                                            <div key={`stop-${stop.id}`} className="flex gap-3 text-sm mb-4 mt-2 bg-amber-50 p-2 rounded-lg border border-amber-100 mx-[-8px]">
+                                                                <div className="flex flex-col items-center pt-1 ml-2">
                                                                     <div className="w-6 h-6 bg-amber-400 rounded-full border-2 border-white shadow-sm z-10 text-[10px] flex items-center justify-center text-white font-bold">
-                                                                        {i + 1}
+                                                                        {stop.id}
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex-1">
-                                                                    <div className="font-bold text-gray-800 text-sm">Rest Stop #{i + 1}</div>
-                                                                    <div className="text-xs text-gray-400">Time to rest?</div>
+                                                                    <div className="font-bold text-gray-800 text-sm">Rest Stop #{stop.id}</div>
+                                                                    <div className="text-xs text-amber-600 font-medium">Take a break here (~{(stop.distanceFromStart/1000).toFixed(2)}km)</div>
                                                                 </div>
                                                             </div>
-                                                        );
-                                                    })}
+                                                        ))}
+                                                    </React.Fragment>
+                                                );
+                                            });
+                                        })()}
 
-                                                    {/* 3. END Point */}
-                                                    <div className="relative flex gap-4">
-                                                        {/* Distance Badge floating on line */}
-                                                        <div className="absolute left-[-2.6rem] -top-6 w-16 text-center z-0">
-                                                            <span className="bg-white text-gray-400 text-[9px] font-mono px-1.5 py-0.5 rounded-full border border-gray-100 shadow-sm">
-                                                                +{(routePlan.route.totalDistance - (routePlan.stops.length > 0 ? routePlan.stops[routePlan.stops.length-1].distanceFromStart : 0)).toFixed(0)}m
-                                                            </span>
-                                                        </div>
-
-                                                        <div className="absolute left-[-1.5rem] top-0 bottom-0 flex justify-center w-8">
-                                                            <div className="w-3 h-3 bg-red-500 rounded-full border-2 border-white ring-1 ring-red-200 z-10 mt-1.5 shadow-sm"></div>
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <div className="font-bold text-gray-800 text-sm">{endValue}</div>
-                                                            <div className="text-[10px] text-red-600 font-bold uppercase tracking-wider">Destination</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* 4. MAIN NAVIGATE BUTTON */}
-                                                <div className="mt-8">
-                                                    <button 
-                                                        onClick={openFullRouteInGoogleMaps}
-                                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-all active:scale-95 group"
-                                                    >
-                                                        <Map className="w-5 h-5 group-hover:animate-bounce" />
-                                                        <span className="font-semibold text-sm">Open in Google Maps</span>
-                                                    </button>
-                                                </div>
+                                        {/* End Point */}
+                                        <div className="flex gap-3 text-sm mt-4">
+                                            <div className="flex flex-col items-center pt-1">
+                                                <div className="w-3 h-3 bg-red-500 rounded-full border-2 border-white ring-1 ring-red-200 z-10 shadow-sm"></div>
                                             </div>
-                                        ) : (
-                                            <div className="space-y-4 pl-2 pt-2">
-                                                {routePlan.route.steps.map((step, i) => (
-                                                    <div key={i} className="flex gap-3 text-sm group">
-                                                        <div className="flex flex-col items-center pt-1">
-                                                            <div className="w-2 h-2 rounded-full bg-blue-400 group-hover:bg-blue-600 transition-colors" />
-                                                            {i < routePlan.route.steps.length - 1 && (
-                                                                <div className="w-0.5 flex-1 bg-gray-100 my-0.5 group-hover:bg-blue-100" />
-                                                            )}
-                                                        </div>
-                                                        <div className="pb-3 flex-1 border-b border-gray-50 group-last:border-0">
-                                                            <div className="text-gray-800 font-medium leading-snug">{step.instruction}</div>
-                                                            <div className="text-gray-400 text-xs mt-1">{step.distance}m</div>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                            <div className="pb-3 flex-1">
+                                                <div className="font-bold text-gray-800">{endValue}</div>
+                                                <div className="text-[10px] text-red-600 font-bold uppercase tracking-wider">Destination</div>
                                             </div>
-                                        )}
-                                    </div>
-                                    
-                                    {/* Toggle Tabs at Bottom */}
-                                    <div className="flex border-t border-gray-100 mt-2 pt-2 pb-2">
-                                        <button
-                                            onClick={() => setViewMode('stops')}
-                                            className={clsx(
-                                                "flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors rounded-lg",
-                                                viewMode === 'stops' ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600"
-                                            )}
-                                        >
-                                            Timeline
-                                        </button>
-                                        <div className="w-px bg-gray-200 my-2 mx-1"></div>
-                                        <button
-                                            onClick={() => setViewMode('directions')}
-                                            className={clsx(
-                                                "flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors rounded-lg",
-                                                viewMode === 'directions' ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600"
-                                            )}
-                                        >
-                                            Directions
-                                        </button>
+                                        </div>
+
+                                        {/* Google Maps Button (Placed in Directions) */}
+                                        <div className="mt-8 mb-2">
+                                            <button 
+                                                onClick={openFullRouteInGoogleMaps}
+                                                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 transition-all active:scale-95 group"
+                                            >
+                                                <Map className="w-5 h-5 group-hover:animate-bounce" />
+                                                <span className="font-semibold text-sm">Open in Google Maps</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
